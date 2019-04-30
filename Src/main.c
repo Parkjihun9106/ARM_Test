@@ -58,12 +58,15 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 void shiftClock(void);
 void LatchClock(void);
-void ByteDataWrite(uint8_t data);
+void ByteDataWrite_L(uint8_t data);
+void ByteDataWrite_R(uint8_t data);
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+volatile int SW_state = 0;
+
 void shiftClock(void)
 {
 	HAL_GPIO_WritePin(DATAPORT, SHIFT_CLOCK, GPIO_PIN_SET);
@@ -76,7 +79,7 @@ void LatchClock(void)
 	HAL_GPIO_WritePin(DATAPORT, LATCH_CLOCK, GPIO_PIN_RESET);
 }
 
-void ByteDataWrite(uint8_t data)
+void ByteDataWrite_L(uint8_t data)
 {
 	for (uint8_t i=0; i<8; i++)
 	{
@@ -87,10 +90,32 @@ void ByteDataWrite(uint8_t data)
 				HAL_GPIO_WritePin(DATAPORT, DATA, GPIO_PIN_SET);
 			}
 			shiftClock();
+
+
 			data = data << 1;
+
 	}
 	LatchClock();
 }
+void ByteDataWrite_R(uint8_t data)
+{
+	for (uint8_t i=0; i<8; i++)
+	{
+			if (data & 0x01)	//аб╥н shift
+			{
+				HAL_GPIO_WritePin(DATAPORT, DATA, GPIO_PIN_RESET);
+			} else {
+				HAL_GPIO_WritePin(DATAPORT, DATA, GPIO_PIN_SET);
+			}
+			shiftClock();
+
+
+			data = data >> 1;
+
+	}
+	LatchClock();
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -131,11 +156,21 @@ int main(void)
   int index = 0;
   while (1)
   {
+	  if(HAL_GPIO_ReadPin(SWPORT,SW1) == 0)
+	  {
+		 SW_state = 0;
+	  }
+	  if(HAL_GPIO_ReadPin(SWPORT,SW2) == 0)
+	  {
+	  	 SW_state = 1;
+	  }
 	  int pattern = 1 << index;
 	  index = (index + 1) % 8;
 
-	  ByteDataWrite(pattern);
-
+	  if(SW_state == 0)
+	  ByteDataWrite_L(pattern);
+	  if(SW_state == 1)
+	  ByteDataWrite_R(pattern);
 	  HAL_Delay(300);
   /* USER CODE END WHILE */
 
